@@ -1,0 +1,87 @@
+name: Build iOS IPA (Unsigned)
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch: # 允许你手动点击按钮触发打包
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+    # 1. 拉取仓库代码
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    # 2. 设置 Node 环境
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: 18
+
+    # 3. 自动查找并安装 CocoaPods 依赖（如果有的话）
+    - name: Install Pods
+      run: |
+        PODFILE_PATH=$(find . -name "Podfile")
+        if [ ! -z "$PODFILE_PATH" ]; then
+          POD_DIR=$(dirname "$PODFILE_PATH")
+          echo "Found Podfile in $POD_DIR, installing..."
+          cd "$POD_DIR" && pod install
+        else
+          echo "No Podfile found, skipping..."
+        fi
+
+    # 4. 核心：使用 Xcode 命令行编译出没有签名的 App 包
+    - name: Build Xcode Project (No Sign)
+      run: |
+        # 自动定位项目中的 .xcodeproj 或 .xcworkspace 文件
+        WORKSPACE_PATH=$(find . -name "*.xcworkspace" | head -n 1)
+        PROJECT_PATH=$(find . -name "*.xcodeproj" | head -n 1)
+        
+        mkdir -p $GITHUB_WORKSPACE/build-output
+
+        if [ ! -z "$WORKSPACE_PATH" ]; then
+          SCHEME_NAME=$(basename "$WORKSPACE_PATH" .xcworkspace)
+          echo "Building Workspace: $WORKSPACE_PATH with scheme: $SCHEME_NAME"
+          xcodebuild -workspace "$WORKSPACE_PATH" \
+                     -scheme "$SCHEME_NAME" \
+                     -configuration Release \
+                     -sdk iphoneos \
+                     clean build \
+                     CODE_SIGNING_ALLOWED=NO \
+                     CODE_SIGNING_REQUIRED=NO \
+                     CONFIGURATION_BUILD_DIR=$GITHUB_WORKSPACE/build-output
+        else
+          SCHEME_NAME=$(basename "$PROJECT_PATH" .xcodeproj)
+          echo "Building Project: $PROJECT_PATH with scheme: $SCHEME_NAME"
+          xcodebuild -project "$PROJECT_PATH" \
+                     -scheme "$SCHEME_NAME" \
+                     -configuration Release \
+                     -sdk iphoneos \
+                     clean build \
+                     CODE_SIGNING_ALLOWED=NO \
+                     CODE_SIGNING_REQUIRED=NO \
+                     CONFIGURATION_BUILD_DIR=$GITHUB_WORKSPACE/build-output
+        fi
+
+    # 5. 将生成的 .app 封装成苹果手机识别的 .ipa 安装包
+    - name: Package .app into .ipa
+      run: |
+        mkdir -p $GITHUB_WORKSPACE/Payload
+        APP_PATH=$(find $GITHUB_WORKSPACE/build-output -name "*.app" | head -n 1)
+        if [ -z "$APP_PATH" ]; then
+          echo "Error: .app file not found!"
+          exit 1
+        fi
+        echo "Found .app at: $APP_PATH"
+        cp -r "$APP_PATH" $GITHUB_WORKSPACE/Payload/
+        cd $GITHUB_WORKSPACE
+        zip -r orange-cloud-unsigned.ipa Payload
+
+    # 6. 上传生成的无签名 ipa 到 Artifacts
+    - name: Upload IPA to Artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: orange-cloud-unsigned-ipa
+        path: orange-cloud-unsigned.ipa
