@@ -81,7 +81,7 @@ jobs:
 
     # 6. 上传生成的无签名 ipa 到 Artifacts
     - name: Upload IPA to Artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: orange-cloud-unsigned-ipa
         path: orange-cloud-unsigned.ipa
