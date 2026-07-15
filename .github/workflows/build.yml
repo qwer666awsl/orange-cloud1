@@ -48,7 +48,7 @@ jobs:
                    CODE_SIGNING_REQUIRED=NO \
                    TARGETED_DEVICE_FAMILY="1,2" \
                    COMPILER_INDEX_STORE_ENABLE=NO \
-                   APPLICATION_EXTENSION_API_ONLY=NO \
+                   APPLICATION_EXTENSION_API_ONLY=YES \
                    EXCLUDED_ARCHS="watchos" \
                    CONFIGURATION_BUILD_DIR=$GITHUB_WORKSPACE/build-output
 
