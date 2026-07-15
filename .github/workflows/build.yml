@@ -3,7 +3,7 @@ name: Build iOS IPA (Unsigned)
 on:
   push:
     branches: [ main ]
-  workflow_dispatch: # 允许你手动点击按钮触发打包
+  workflow_dispatch: 
 
 jobs:
   build:
@@ -12,15 +12,15 @@ jobs:
     steps:
     # 1. 拉取仓库代码
     - name: Checkout repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4 # 升级到最新 v4 避免警告
 
     # 2. 设置 Node 环境
     - name: Set up Node.js
-      uses: actions/setup-node@v3
+      uses: actions/setup-node@v4 # 升级到最新 v4 避免警告
       with:
-        node-version: 18
+        node-version: 20
 
-    # 3. 自动查找并安装 CocoaPods 依赖（如果有的话）
+    # 3. 自动查找并安装 CocoaPods 依赖
     - name: Install Pods
       run: |
         PODFILE_PATH=$(find . -name "Podfile")
@@ -32,40 +32,22 @@ jobs:
           echo "No Podfile found, skipping..."
         fi
 
-    # 4. 核心：使用 Xcode 命令行编译出没有签名的 App 包
+    # 4. 核心：指定 "Orange Cloud" 项目名直接编译
     - name: Build Xcode Project (No Sign)
       run: |
-        # 自动定位项目中的 .xcodeproj 或 .xcworkspace 文件
-        WORKSPACE_PATH=$(find . -name "*.xcworkspace" | head -n 1)
-        PROJECT_PATH=$(find . -name "*.xcodeproj" | head -n 1)
-        
         mkdir -p $GITHUB_WORKSPACE/build-output
+        
+        # 强制指定 Scheme 为 Orange Cloud，Project 为 Orange Cloud.xcodeproj
+        xcodebuild -project "apps/ios/Orange Cloud/Orange Cloud.xcodeproj" \
+                   -scheme "Orange Cloud" \
+                   -configuration Release \
+                   -sdk iphoneos \
+                   clean build \
+                   CODE_SIGNING_ALLOWED=NO \
+                   CODE_SIGNING_REQUIRED=NO \
+                   CONFIGURATION_BUILD_DIR=$GITHUB_WORKSPACE/build-output
 
-        if [ ! -z "$WORKSPACE_PATH" ]; then
-          SCHEME_NAME=$(basename "$WORKSPACE_PATH" .xcworkspace)
-          echo "Building Workspace: $WORKSPACE_PATH with scheme: $SCHEME_NAME"
-          xcodebuild -workspace "$WORKSPACE_PATH" \
-                     -scheme "$SCHEME_NAME" \
-                     -configuration Release \
-                     -sdk iphoneos \
-                     clean build \
-                     CODE_SIGNING_ALLOWED=NO \
-                     CODE_SIGNING_REQUIRED=NO \
-                     CONFIGURATION_BUILD_DIR=$GITHUB_WORKSPACE/build-output
-        else
-          SCHEME_NAME=$(basename "$PROJECT_PATH" .xcodeproj)
-          echo "Building Project: $PROJECT_PATH with scheme: $SCHEME_NAME"
-          xcodebuild -project "$PROJECT_PATH" \
-                     -scheme "$SCHEME_NAME" \
-                     -configuration Release \
-                     -sdk iphoneos \
-                     clean build \
-                     CODE_SIGNING_ALLOWED=NO \
-                     CODE_SIGNING_REQUIRED=NO \
-                     CONFIGURATION_BUILD_DIR=$GITHUB_WORKSPACE/build-output
-        fi
-
-    # 5. 将生成的 .app 封装成苹果手机识别的 .ipa 安装包
+    # 5. 将生成的 .app 封装成 .ipa 安装包
     - name: Package .app into .ipa
       run: |
         mkdir -p $GITHUB_WORKSPACE/Payload
