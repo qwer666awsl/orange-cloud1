@@ -34,24 +34,14 @@ jobs:
 
 
 
-    # 4. 核心：在编译前直接强行删除 Watch 手表端相关的代码与依赖，确保绝对不触发其报错
-    - name: Clean Watch Code and Build
+# 4. 核心：精准指定 Target 编译，只打包手机端主体及关联组件
+    - name: Build Xcode Project (No Sign)
       run: |
         mkdir -p $GITHUB_WORKSPACE/build-output
         
-        echo "=== 正在强行剔除项目中的所有 Watch 手表端配置和文件 ==="
-        # 1. 物理删除所有与手表有关的源码文件夹
-        rm -rf "apps/ios/Orange Cloud/Orange Cloud Watch"
-        rm -rf "apps/ios/Orange Cloud/Orange Cloud Watch Watch App"
-        
-        # 2. 如果项目是用 CocoaPods 管理的，顺便把 Podfile 里的 watch 依赖也抹掉（防止 pod 阶段报错）
-        if [ -f "apps/ios/Podfile" ]; then
-          sed -i '' '/target .*Watch/,$d' apps/ios/Podfile || true
-        fi
-        
-        echo "=== 开始针对 iPhone/iPad 及桌面小组件进行绝对纯净编译 ==="
+        echo "=== 正在精准打包 iOS/iPadOS 核心应用 ==="
         xcodebuild -project "apps/ios/Orange Cloud/Orange Cloud.xcodeproj" \
-                   -scheme "Orange Cloud" \
+                   -target "Orange Cloud" \
                    -configuration Release \
                    -sdk iphoneos \
                    clean build \
@@ -60,7 +50,6 @@ jobs:
                    APPLICATION_EXTENSION_API_ONLY=YES \
                    COMPILER_INDEX_STORE_ENABLE=NO \
                    CONFIGURATION_BUILD_DIR=$GITHUB_WORKSPACE/build-output
-
 
 
     # 5. 将生成的 .app 封装成 .ipa 安装包
