@@ -32,12 +32,13 @@ jobs:
           echo "No Podfile found, skipping..."
         fi
 
-    # 4. 核心：指定 "Orange Cloud" 项目名直接编译
+
+
+    # 4. 核心：精准屏蔽 Watch 编译，全力保留 iPhone/iPad 主体及小组件
     - name: Build Xcode Project (No Sign)
       run: |
         mkdir -p $GITHUB_WORKSPACE/build-output
         
-        # 强制指定 Scheme 为 Orange Cloud，Project 为 Orange Cloud.xcodeproj
         xcodebuild -project "apps/ios/Orange Cloud/Orange Cloud.xcodeproj" \
                    -scheme "Orange Cloud" \
                    -configuration Release \
@@ -45,7 +46,14 @@ jobs:
                    clean build \
                    CODE_SIGNING_ALLOWED=NO \
                    CODE_SIGNING_REQUIRED=NO \
+                   TARGETED_DEVICE_FAMILY="1,2" \
+                   COMPILER_INDEX_STORE_ENABLE=NO \
+                   APPLICATION_EXTENSION_API_ONLY=NO \
+                   EXCLUDED_ARCHS="watchos" \
                    CONFIGURATION_BUILD_DIR=$GITHUB_WORKSPACE/build-output
+
+
+
 
     # 5. 将生成的 .app 封装成 .ipa 安装包
     - name: Package .app into .ipa
